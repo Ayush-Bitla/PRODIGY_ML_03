@@ -7,6 +7,9 @@ import os
 import pickle
 import time
 import base64
+from tensorflow.keras.applications import MobileNetV2
+from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
+from tensorflow.keras.preprocessing.image import img_to_array
 
 # Page configuration
 st.set_page_config(
@@ -59,121 +62,21 @@ def load_model():
         st.error("Model file not found. Please make sure 'mobilenet_svm_model.pkl' exists in the current directory.")
         return None
 
-def extract_simple_features(image):
-    """Extract simple features from image for deployment (without TensorFlow)"""
+def extract_features(image):
+    """Extract features from a single image using MobileNetV2"""
     try:
-        # Convert PIL image to numpy array
-        if isinstance(image, Image.Image):
-            img_array = np.array(image)
-        else:
-            # Handle Streamlit camera input
-            img_array = np.array(image)
+        # Load MobileNetV2 model
+        model = MobileNetV2(weights='imagenet', include_top=False, pooling='avg', input_shape=(224, 224, 3))
         
-        # Debug: Print image shape
-        st.write(f"Debug: Image shape: {img_array.shape}")
-        st.write(f"Debug: Image dtype: {img_array.dtype}")
+        # Preprocess image
+        image = preprocess_input(image)
         
-        # Ensure we have RGB format
-        if len(img_array.shape) == 3:
-            if img_array.shape[2] == 4:  # RGBA
-                img_array = img_array[:, :, :3]  # Remove alpha channel
-            elif img_array.shape[2] == 1:  # Grayscale with channel dimension
-                img_array = np.stack([img_array[:, :, 0]] * 3, axis=2)
-            elif img_array.shape[2] == 3:  # Already RGB
-                pass
-        else:
-            # Single channel (2D array), convert to RGB
-            img_array = np.stack([img_array] * 3, axis=2)
-        
-        # Convert to grayscale for processing
-        gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-        
-        # Resize to 224x224
-        resized = cv2.resize(gray, (224, 224))
-        
-        # Extract features to match the expected 1280 features
-        features = []
-        
-        # 1. Histogram features (256)
-        hist = cv2.calcHist([resized], [0], None, [256], [0, 256])
-        hist = hist.flatten() / (hist.sum() + 1e-8)  # Normalize
-        features.extend(hist)
-        
-        # 2. Edge features (256)
-        edges = cv2.Canny(resized, 50, 150)
-        edge_hist = cv2.calcHist([edges], [0], None, [256], [0, 256])
-        edge_hist = edge_hist.flatten() / (edge_hist.sum() + 1e-8)
-        features.extend(edge_hist)
-        
-        # 3. Gradient features (256)
-        grad_x = cv2.Sobel(resized, cv2.CV_64F, 1, 0, ksize=3)
-        grad_y = cv2.Sobel(resized, cv2.CV_64F, 0, 1, ksize=3)
-        gradient_magnitude = np.sqrt(grad_x**2 + grad_y**2)
-        grad_hist = cv2.calcHist([gradient_magnitude.astype(np.uint8)], [0], None, [256], [0, 256])
-        grad_hist = grad_hist.flatten() / (grad_hist.sum() + 1e-8)
-        features.extend(grad_hist)
-        
-        # 4. Local Binary Pattern features (256)
-        lbp_features = extract_lbp_features(resized)
-        features.extend(lbp_features)
-        
-        # 5. Texture features (256)
-        texture_features = extract_texture_features(resized)
-        features.extend(texture_features)
-        
-        # Ensure we have exactly 1280 features
-        features = np.array(features)
-        if len(features) < 1280:
-            features = np.pad(features, (0, 1280 - len(features)), 'constant')
-        elif len(features) > 1280:
-            features = features[:1280]
-        
-        return features.reshape(1, -1)
-        
+        # Extract features
+        features = model.predict(image, verbose=0)
+        return features
     except Exception as e:
         st.error(f"Error in feature extraction: {str(e)}")
         return None
-
-def extract_lbp_features(image):
-    """Extract Local Binary Pattern features"""
-    features = []
-    for i in range(0, 224, 32):
-        for j in range(0, 224, 32):
-            patch = image[i:i+32, j:j+32]
-            if patch.shape == (32, 32):
-                # Simple LBP-like feature
-                center = patch[16, 16]
-                lbp_value = 0
-                for k in range(8):
-                    x = 16 + int(8 * np.cos(k * np.pi / 4))
-                    y = 16 + int(8 * np.sin(k * np.pi / 4))
-                    if 0 <= x < 32 and 0 <= y < 32:
-                        if patch[y, x] >= center:
-                            lbp_value += 2**k
-                features.append(lbp_value / 255.0)  # Normalize
-    
-    # Pad to 256 features
-    while len(features) < 256:
-        features.append(0.0)
-    return features[:256]
-
-def extract_texture_features(image):
-    """Extract texture features"""
-    features = []
-    for i in range(0, 224, 32):
-        for j in range(0, 224, 32):
-            patch = image[i:i+32, j:j+32]
-            if patch.shape == (32, 32):
-                # Simple texture measures
-                features.append(np.mean(patch) / 255.0)
-                features.append(np.std(patch) / 255.0)
-                features.append(np.max(patch) / 255.0)
-                features.append(np.min(patch) / 255.0)
-    
-    # Pad to 256 features
-    while len(features) < 256:
-        features.append(0.0)
-    return features[:256]
 
 def preprocess_image(image):
     """Preprocess uploaded image"""
@@ -182,7 +85,19 @@ def preprocess_image(image):
         if isinstance(image, Image.Image):
             img_array = np.array(image)
         else:
-            img_array = np.array(image)
+            # Handle Streamlit camera input - convert to PIL first
+            if hasattr(image, 'read'):
+                # It's a file-like object
+                pil_image = Image.open(image)
+                img_array = np.array(pil_image)
+            else:
+                # Try direct conversion
+                img_array = np.array(image)
+        
+        # Check if we have a valid image array
+        if img_array.size == 0 or img_array.shape == ():
+            st.error("Invalid image data received in preprocessing")
+            return None
         
         # Ensure RGB format
         if len(img_array.shape) == 3:
@@ -199,7 +114,11 @@ def preprocess_image(image):
         # Resize to 224x224
         img_resized = cv2.resize(img_array, (224, 224))
         
-        return img_resized
+        # Convert to array and add batch dimension
+        img_array = img_to_array(img_resized)
+        img_array = np.expand_dims(img_array, axis=0)
+        
+        return img_array
     except Exception as e:
         st.error(f"Error in image preprocessing: {str(e)}")
         return None
@@ -207,8 +126,14 @@ def preprocess_image(image):
 def predict_image(model, image):
     """Predict whether the image contains a dog or cat"""
     try:
-        # Extract features using simple method
-        features = extract_simple_features(image)
+        # Preprocess the image
+        processed_image = preprocess_image(image)
+        
+        if processed_image is None:
+            return None
+        
+        # Extract features
+        features = extract_features(processed_image)
         
         if features is None:
             return None
@@ -244,15 +169,13 @@ def main():
     
     **How it works:**
     1. Upload an image or use live camera
-    2. The model extracts features using image processing
+    2. The model extracts features using MobileNetV2
     3. An SVM classifier predicts the result
     
     **Model Details:**
-    - Feature Extractor: Image processing techniques
+    - Feature Extractor: MobileNetV2 (pre-trained on ImageNet)
     - Classifier: Support Vector Machine (SVM)
-    - Expected Accuracy: ~75-80%
-    
-    **Note:** This is a simplified version for deployment.
+    - Expected Accuracy: ~85-90%
     """)
     
     # Main content
@@ -447,9 +370,9 @@ def display_prediction_result(prediction, model):
     st.subheader("ℹ️ Model Information")
     st.markdown(f"""
     - **Model Type:** SVM Classifier
-    - **Feature Extraction:** Image Processing
+    - **Feature Extraction:** MobileNetV2
     - **Input Size:** 224x224 pixels
-    - **Processing Time:** ~1-2 seconds
+    - **Processing Time:** ~2-3 seconds
     """)
 
 if __name__ == "__main__":
