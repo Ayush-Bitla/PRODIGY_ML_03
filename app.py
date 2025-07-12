@@ -69,14 +69,20 @@ def extract_simple_features(image):
             # Handle Streamlit camera input
             img_array = np.array(image)
         
+        # Debug: Print image shape
+        st.write(f"Debug: Image shape: {img_array.shape}")
+        st.write(f"Debug: Image dtype: {img_array.dtype}")
+        
         # Ensure we have RGB format
         if len(img_array.shape) == 3:
             if img_array.shape[2] == 4:  # RGBA
                 img_array = img_array[:, :, :3]  # Remove alpha channel
-            elif img_array.shape[2] == 1:  # Grayscale
+            elif img_array.shape[2] == 1:  # Grayscale with channel dimension
                 img_array = np.stack([img_array[:, :, 0]] * 3, axis=2)
+            elif img_array.shape[2] == 3:  # Already RGB
+                pass
         else:
-            # Single channel, convert to RGB
+            # Single channel (2D array), convert to RGB
             img_array = np.stack([img_array] * 3, axis=2)
         
         # Convert to grayscale for processing
@@ -182,7 +188,12 @@ def preprocess_image(image):
         if len(img_array.shape) == 3:
             if img_array.shape[2] == 4:  # RGBA
                 img_array = img_array[:, :, :3]
+            elif img_array.shape[2] == 1:  # Grayscale with channel dimension
+                img_array = np.stack([img_array[:, :, 0]] * 3, axis=2)
+            elif img_array.shape[2] == 3:  # Already RGB
+                pass
         else:
+            # Single channel (2D array), convert to RGB
             img_array = np.stack([img_array] * 3, axis=2)
         
         # Resize to 224x224
