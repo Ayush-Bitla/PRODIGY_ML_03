@@ -1,0 +1,64 @@
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Dataset files (too large for GitHub)
+dogs-vs-cats.zip
+dogs-vs-cats/
+train.zip
+test1.zip
+*.jpg
+*.jpeg
+*.png
+*.gif
+
+# Model files (can be regenerated)
+*.pkl
+*.h5
+*.pth
+
+# Kaggle credentials
+kaggle.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Streamlit
+.streamlit/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp 
