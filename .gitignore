@@ -36,7 +36,6 @@ test1.zip
 *.gif
 
 # Model files (can be regenerated)
-*.pkl
 *.h5
 *.pth
 
