@@ -92,16 +92,16 @@ with col1:
         image = Image.open(uploaded_file)
         st.image(image, caption="Uploaded Image", use_container_width=True)
 
-        if st.button("🔍 Predict"):
-            with st.spinner("Classifying..."):
-                model = load_model()
-                if model is None:
-                    st.stop()
-                feature_extractor = load_feature_extractor()
-                features = extract_features(image, feature_extractor)
-                prediction = model.predict(features)[0]
+        # Automatic prediction
+        with st.spinner("Classifying..."):
+            model = load_model()
+            if model is None:
+                st.stop()
+            feature_extractor = load_feature_extractor()
+            features = extract_features(image, feature_extractor)
+            prediction = model.predict(features)[0]
 
-                with col2:
-                    display_prediction_panel(prediction)
+            with col2:
+                display_prediction_panel(prediction)
     else:
         st.info("📤 Upload an image to get started.")
