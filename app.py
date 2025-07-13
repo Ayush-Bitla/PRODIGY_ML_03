@@ -42,8 +42,8 @@ def display_prediction_panel(prediction):
     emoji = "🐱" if result == "Cat" else "🐕"
     confidence = 0.93 if result == "Cat" else 0.95
 
-    # Show prediction summary
-    st.markdown(f"### {emoji} **{result}**")
+    # Show prediction summary in green box
+    st.success(f"{emoji} **{result}**")
     
     # Confidence
     st.markdown("### 📊 Confidence")
