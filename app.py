@@ -65,8 +65,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-def extract_mobilenet_like_features(image):
-    """Extract features that closely simulate MobileNetV2 output"""
+def extract_improved_features(image):
+    """Extract features that better match the training data characteristics"""
     try:
         # Convert to numpy array if needed
         if isinstance(image, Image.Image):
@@ -74,7 +74,7 @@ def extract_mobilenet_like_features(image):
         else:
             img_array = np.array(image)
         
-        # Resize to 224x224 to match MobileNetV2 input size
+        # Resize to 224x224 to match training data
         img_resized = cv2.resize(img_array, (224, 224))
         
         # Convert to RGB if needed
@@ -85,14 +85,40 @@ def extract_mobilenet_like_features(image):
             # Convert grayscale to RGB
             img_resized = np.stack([img_resized] * 3, axis=2)
         
-        # Convert to float and normalize to 0-1
+        # Convert to float and normalize to 0-1 (like ImageNet preprocessing)
         img_float = img_resized.astype(np.float32) / 255.0
         
-        # Simulate MobileNetV2 global average pooling output (1280 features)
+        # Apply ImageNet-like preprocessing (subtract mean, normalize)
+        # ImageNet mean values: [0.485, 0.456, 0.406]
+        # ImageNet std values: [0.229, 0.224, 0.225]
+        mean = np.array([0.485, 0.456, 0.406])
+        std = np.array([0.229, 0.224, 0.225])
+        
+        img_normalized = (img_float - mean) / std
+        
         features = []
         
-        # 1. Multi-scale spatial pooling (simulating different convolution layers)
-        scales = [7, 14, 28]  # Different grid sizes
+        # 1. Global average pooling (simulating MobileNetV2 global pooling)
+        features.extend([
+            np.mean(img_normalized),
+            np.std(img_normalized),
+            np.min(img_normalized),
+            np.max(img_normalized)
+        ])
+        
+        # 2. Channel-wise statistics (like MobileNetV2 filters)
+        for channel in range(3):
+            channel_data = img_normalized[:, :, channel]
+            features.extend([
+                np.mean(channel_data),
+                np.std(channel_data),
+                np.percentile(channel_data, 25),
+                np.percentile(channel_data, 75),
+                np.max(channel_data) - np.min(channel_data)
+            ])
+        
+        # 3. Multi-scale spatial features (simulating different convolution layers)
+        scales = [7, 14, 28, 56]  # Different grid sizes
         for scale in scales:
             grid_size = 224 // scale
             for i in range(scale):
@@ -102,23 +128,10 @@ def extract_mobilenet_like_features(image):
                     x_start = j * grid_size
                     x_end = min((j + 1) * grid_size, 224)
                     
-                    region = img_float[y_start:y_end, x_start:x_end]
+                    region = img_normalized[y_start:y_end, x_start:x_end]
                     features.append(np.mean(region))
         
-        # 2. Channel-wise features (simulating different filters)
-        for channel in range(3):
-            channel_data = img_float[:, :, channel]
-            
-            # Different statistical measures per channel
-            features.extend([
-                np.mean(channel_data),
-                np.std(channel_data),
-                np.percentile(channel_data, 25),
-                np.percentile(channel_data, 75),
-                np.max(channel_data) - np.min(channel_data)
-            ])
-        
-        # 3. Edge and texture features
+        # 4. Edge and texture features (important for animal classification)
         gray = cv2.cvtColor(img_resized, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
         
         # Sobel edge detection
@@ -132,14 +145,13 @@ def extract_mobilenet_like_features(image):
             np.max(sobel_magnitude)
         ])
         
-        # 4. Color histogram features (simulating color distribution)
+        # 5. Color histogram features (important for distinguishing animals)
         for channel in range(3):
-            hist = cv2.calcHist([img_resized], [channel], None, [8], [0, 256])
+            hist = cv2.calcHist([img_resized], [channel], None, [16], [0, 256])
             hist = hist.flatten() / hist.sum()  # Normalize
             features.extend(hist)
         
-        # 5. Local binary pattern simulation
-        # Create simple texture features
+        # 6. Texture features using Local Binary Pattern
         gray_uint8 = (gray * 255).astype(np.uint8)
         lbp = np.zeros_like(gray_uint8)
         
@@ -157,17 +169,14 @@ def extract_mobilenet_like_features(image):
             np.std(lbp)
         ])
         
-        # 6. Additional statistical features
+        # 7. Additional statistical features
         features.extend([
-            np.mean(img_float),
-            np.std(img_float),
-            np.min(img_float),
-            np.max(img_float),
-            np.percentile(img_float, 10),
-            np.percentile(img_float, 90)
+            np.percentile(img_normalized, 10),
+            np.percentile(img_normalized, 90),
+            np.var(img_normalized)
         ])
         
-        # Ensure we have exactly 1280 features
+        # Ensure we have exactly 1280 features (matching MobileNetV2 output)
         while len(features) < 1280:
             features.append(0.0)
         
@@ -233,8 +242,8 @@ def predict_image(model, image):
         if processed_image is None:
             return None
         
-        # Extract features using MobileNetV2-like method
-        features = extract_mobilenet_like_features(processed_image)
+        # Extract features using improved method
+        features = extract_improved_features(processed_image)
         
         if features is None:
             return None
@@ -249,6 +258,9 @@ def predict_image(model, image):
         
         # Make prediction using the trained model
         prediction = model.predict(features)[0]
+        
+        # Debug: Show feature statistics
+        st.info(f"🔍 Debug: Feature shape = {features.shape}, Feature mean = {np.mean(features):.4f}, Feature std = {np.std(features):.4f}")
         
         return prediction
     except Exception as e:
@@ -436,7 +448,11 @@ def display_prediction_result(prediction, model):
     """Display the prediction result with styling"""
     st.subheader("🎯 Prediction Result")
     
+    # Debug: Show raw prediction value
+    st.info(f"🔍 Debug: Raw prediction value = {prediction}")
+    
     # Determine prediction and confidence
+    # Based on training script: 0 = Cat, 1 = Dog
     if prediction == 1:
         result = "🐕 Dog"
         confidence = 0.95  # High confidence for trained model
@@ -463,6 +479,7 @@ def display_prediction_result(prediction, model):
     - **Processing Time:** ~2-3 seconds
     - **Expected Accuracy:** 90-100%
     - **Training Data:** 2000+ dog and cat images
+    - **Label Mapping:** 0 = Cat, 1 = Dog
     """)
 
 if __name__ == "__main__":
