@@ -65,7 +65,74 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-def extract_improved_features(image):
+def test_model_expectations(model):
+    """Test what the model expects by trying different preprocessing methods"""
+    st.info("🔍 Testing model expectations...")
+    
+    # Create a simple test image (all zeros)
+    test_img = np.zeros((224, 224, 3), dtype=np.uint8)
+    
+    # Method 1: Simple normalization (0-1)
+    img1 = test_img.astype(np.float32) / 255.0
+    features1 = extract_simple_features(img1)
+    
+    # Method 2: ImageNet normalization
+    img2 = test_img.astype(np.float32) / 255.0
+    mean = np.array([0.485, 0.456, 0.406])
+    std = np.array([0.229, 0.224, 0.225])
+    img2 = (img2 - mean) / std
+    features2 = extract_simple_features(img2)
+    
+    # Method 3: Raw values
+    features3 = extract_simple_features(test_img.astype(np.float32))
+    
+    # Test predictions
+    try:
+        pred1 = model.predict(features1)[0]
+        pred2 = model.predict(features2)[0]
+        pred3 = model.predict(features3)[0]
+        
+        st.write(f"Method 1 (0-1): {pred1}")
+        st.write(f"Method 2 (ImageNet): {pred2}")
+        st.write(f"Method 3 (Raw): {pred3}")
+        
+        return pred1, pred2, pred3
+    except Exception as e:
+        st.error(f"Error testing model: {e}")
+        return None, None, None
+
+def extract_simple_features(image):
+    """Extract simple features for testing"""
+    # Convert to 1280 features
+    features = []
+    
+    # Basic statistics
+    features.extend([
+        np.mean(image),
+        np.std(image),
+        np.min(image),
+        np.max(image)
+    ])
+    
+    # Channel-wise features
+    for channel in range(3):
+        channel_data = image[:, :, channel]
+        features.extend([
+            np.mean(channel_data),
+            np.std(channel_data)
+        ])
+    
+    # Fill to 1280 features
+    while len(features) < 1280:
+        features.append(0.0)
+    
+    features = features[:1280]
+    features = np.array(features, dtype=np.float32)
+    features = (features - np.mean(features)) / (np.std(features) + 1e-8)
+    
+    return features.reshape(1, -1)
+
+def extract_improved_features(image, model):
     """Extract features that better match the training data characteristics"""
     try:
         # Convert to numpy array if needed
@@ -85,111 +152,143 @@ def extract_improved_features(image):
             # Convert grayscale to RGB
             img_resized = np.stack([img_resized] * 3, axis=2)
         
-        # Convert to float and normalize to 0-1 (like ImageNet preprocessing)
-        img_float = img_resized.astype(np.float32) / 255.0
+        # Try different preprocessing methods
+        features_list = []
         
-        # Apply ImageNet-like preprocessing (subtract mean, normalize)
-        # ImageNet mean values: [0.485, 0.456, 0.406]
-        # ImageNet std values: [0.229, 0.224, 0.225]
+        # Method 1: Simple 0-1 normalization
+        img1 = img_resized.astype(np.float32) / 255.0
+        features1 = extract_features_from_image(img1)
+        features_list.append(("Simple 0-1", features1))
+        
+        # Method 2: ImageNet normalization
+        img2 = img_resized.astype(np.float32) / 255.0
         mean = np.array([0.485, 0.456, 0.406])
         std = np.array([0.229, 0.224, 0.225])
+        img2 = (img2 - mean) / std
+        features2 = extract_features_from_image(img2)
+        features_list.append(("ImageNet", features2))
         
-        img_normalized = (img_float - mean) / std
+        # Method 3: Raw values
+        features3 = extract_features_from_image(img_resized.astype(np.float32))
+        features_list.append(("Raw", features3))
         
-        features = []
+        # Method 4: MobileNetV2-like preprocessing (closest to training)
+        img4 = img_resized.astype(np.float32)
+        # MobileNetV2 preprocessing: scale to [-1, 1]
+        img4 = img4 / 127.5 - 1.0
+        features4 = extract_features_from_image(img4)
+        features_list.append(("MobileNetV2", features4))
         
-        # 1. Global average pooling (simulating MobileNetV2 global pooling)
-        features.extend([
-            np.mean(img_normalized),
-            np.std(img_normalized),
-            np.min(img_normalized),
-            np.max(img_normalized)
-        ])
+        # Try each method and return the first one that works
+        for method_name, features in features_list:
+            try:
+                # Test prediction
+                test_pred = model.predict(features)[0]
+                st.info(f"✅ Using {method_name} preprocessing method")
+                return features
+            except Exception as e:
+                st.warning(f"❌ {method_name} method failed: {e}")
+                continue
         
-        # 2. Channel-wise statistics (like MobileNetV2 filters)
-        for channel in range(3):
-            channel_data = img_normalized[:, :, channel]
-            features.extend([
-                np.mean(channel_data),
-                np.std(channel_data),
-                np.percentile(channel_data, 25),
-                np.percentile(channel_data, 75),
-                np.max(channel_data) - np.min(channel_data)
-            ])
+        # If all methods fail, use the first one
+        st.warning("⚠️ All preprocessing methods failed, using simple method")
+        return features_list[0][1]
         
-        # 3. Multi-scale spatial features (simulating different convolution layers)
-        scales = [7, 14, 28, 56]  # Different grid sizes
-        for scale in scales:
-            grid_size = 224 // scale
-            for i in range(scale):
-                for j in range(scale):
-                    y_start = i * grid_size
-                    y_end = min((i + 1) * grid_size, 224)
-                    x_start = j * grid_size
-                    x_end = min((j + 1) * grid_size, 224)
-                    
-                    region = img_normalized[y_start:y_end, x_start:x_end]
-                    features.append(np.mean(region))
-        
-        # 4. Edge and texture features (important for animal classification)
-        gray = cv2.cvtColor(img_resized, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
-        
-        # Sobel edge detection
-        sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
-        sobel_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
-        sobel_magnitude = np.sqrt(sobel_x**2 + sobel_y**2)
-        
-        features.extend([
-            np.mean(sobel_magnitude),
-            np.std(sobel_magnitude),
-            np.max(sobel_magnitude)
-        ])
-        
-        # 5. Color histogram features (important for distinguishing animals)
-        for channel in range(3):
-            hist = cv2.calcHist([img_resized], [channel], None, [16], [0, 256])
-            hist = hist.flatten() / hist.sum()  # Normalize
-            features.extend(hist)
-        
-        # 6. Texture features using Local Binary Pattern
-        gray_uint8 = (gray * 255).astype(np.uint8)
-        lbp = np.zeros_like(gray_uint8)
-        
-        for i in range(1, gray_uint8.shape[0] - 1):
-            for j in range(1, gray_uint8.shape[1] - 1):
-                center = gray_uint8[i, j]
-                code = 0
-                for k, (di, dj) in enumerate([(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)]):
-                    if gray_uint8[i + di, j + dj] >= center:
-                        code += 2**k
-                lbp[i, j] = code
-        
-        features.extend([
-            np.mean(lbp),
-            np.std(lbp)
-        ])
-        
-        # 7. Additional statistical features
-        features.extend([
-            np.percentile(img_normalized, 10),
-            np.percentile(img_normalized, 90),
-            np.var(img_normalized)
-        ])
-        
-        # Ensure we have exactly 1280 features (matching MobileNetV2 output)
-        while len(features) < 1280:
-            features.append(0.0)
-        
-        features = features[:1280]
-        
-        # Convert to numpy array and normalize
-        features = np.array(features, dtype=np.float32)
-        features = (features - np.mean(features)) / (np.std(features) + 1e-8)
-        
-        return features.reshape(1, -1)
     except Exception as e:
         st.error(f"Error in feature extraction: {str(e)}")
         return None
+
+def extract_features_from_image(img_normalized):
+    """Extract features from preprocessed image"""
+    features = []
+    
+    # 1. Global statistics
+    features.extend([
+        np.mean(img_normalized),
+        np.std(img_normalized),
+        np.min(img_normalized),
+        np.max(img_normalized)
+    ])
+    
+    # 2. Channel-wise statistics
+    for channel in range(3):
+        channel_data = img_normalized[:, :, channel]
+        features.extend([
+            np.mean(channel_data),
+            np.std(channel_data),
+            np.percentile(channel_data, 25),
+            np.percentile(channel_data, 75),
+            np.max(channel_data) - np.min(channel_data)
+        ])
+    
+    # 3. Multi-scale spatial features
+    scales = [7, 14, 28, 56]
+    for scale in scales:
+        grid_size = 224 // scale
+        for i in range(scale):
+            for j in range(scale):
+                y_start = i * grid_size
+                y_end = min((i + 1) * grid_size, 224)
+                x_start = j * grid_size
+                x_end = min((j + 1) * grid_size, 224)
+                
+                region = img_normalized[y_start:y_end, x_start:x_end]
+                features.append(np.mean(region))
+    
+    # 4. Edge features
+    gray = cv2.cvtColor((img_normalized * 255).astype(np.uint8), cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
+    
+    sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
+    sobel_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
+    sobel_magnitude = np.sqrt(sobel_x**2 + sobel_y**2)
+    
+    features.extend([
+        np.mean(sobel_magnitude),
+        np.std(sobel_magnitude),
+        np.max(sobel_magnitude)
+    ])
+    
+    # 5. Color histogram
+    img_uint8 = (img_normalized * 255).astype(np.uint8)
+    for channel in range(3):
+        hist = cv2.calcHist([img_uint8], [channel], None, [16], [0, 256])
+        hist = hist.flatten() / hist.sum()
+        features.extend(hist)
+    
+    # 6. Texture features
+    gray_uint8 = (gray * 255).astype(np.uint8)
+    lbp = np.zeros_like(gray_uint8)
+    
+    for i in range(1, gray_uint8.shape[0] - 1):
+        for j in range(1, gray_uint8.shape[1] - 1):
+            center = gray_uint8[i, j]
+            code = 0
+            for k, (di, dj) in enumerate([(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)]):
+                if gray_uint8[i + di, j + dj] >= center:
+                    code += 2**k
+            lbp[i, j] = code
+    
+    features.extend([
+        np.mean(lbp),
+        np.std(lbp)
+    ])
+    
+    # 7. Additional features
+    features.extend([
+        np.percentile(img_normalized, 10),
+        np.percentile(img_normalized, 90),
+        np.var(img_normalized)
+    ])
+    
+    # Ensure 1280 features
+    while len(features) < 1280:
+        features.append(0.0)
+    
+    features = features[:1280]
+    features = np.array(features, dtype=np.float32)
+    features = (features - np.mean(features)) / (np.std(features) + 1e-8)
+    
+    return features.reshape(1, -1)
 
 def preprocess_image(image):
     """Preprocess uploaded image"""
@@ -243,7 +342,7 @@ def predict_image(model, image):
             return None
         
         # Extract features using improved method
-        features = extract_improved_features(processed_image)
+        features = extract_improved_features(processed_image, model)
         
         if features is None:
             return None
@@ -304,6 +403,10 @@ def main():
     2. The model extracts 1280 deep features from the image
     3. The trained SVM classifier predicts the result
     """)
+    
+    # Debug section
+    if st.sidebar.button("🔍 Test Model"):
+        test_model_expectations(model)
     
     # Main content
     st.subheader("🎯 Choose Input Method")
