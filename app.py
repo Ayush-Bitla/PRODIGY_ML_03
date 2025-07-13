@@ -239,12 +239,6 @@ def main():
     # Header
     st.markdown('<h1 class="main-header">🐕🐱 Dog vs Cat Classifier</h1>', unsafe_allow_html=True)
     
-    # Initialize session state for tracking predictions
-    if 'predictions' not in st.session_state:
-        st.session_state.predictions = []
-    if 'total_predictions' not in st.session_state:
-        st.session_state.total_predictions = 0
-    
     # Load model
     model = load_model()
     
@@ -433,35 +427,8 @@ def main():
             else:
                 st.info("Click 'Activate Camera' to start using the camera feature.")
     
-    # Real-time accuracy display
-    if st.session_state.total_predictions > 0:
-        st.subheader("📊 Prediction Statistics")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric("Total Predictions", st.session_state.total_predictions)
-        
-        with col2:
-            if st.session_state.predictions:
-                # Calculate accuracy based on model confidence
-                high_confidence_predictions = [p for p in st.session_state.predictions if p['confidence'] > 0.8]
-                if high_confidence_predictions:
-                    accuracy = len(high_confidence_predictions) / len(st.session_state.predictions) * 100
-                    st.metric("Model Accuracy", f"{accuracy:.1f}%")
-                else:
-                    st.metric("Model Accuracy", "90-100%")
-            else:
-                st.metric("Model Accuracy", "90-100%")
-        
-        with col3:
-            if st.session_state.predictions:
-                # Show recent performance
-                recent_predictions = st.session_state.predictions[-5:]
-                avg_confidence = sum(p['confidence'] for p in recent_predictions) / len(recent_predictions) * 100
-                st.metric("Recent Confidence", f"{avg_confidence:.1f}%")
-            else:
-                st.metric("Recent Confidence", "90-100%")
+    # Real-time accuracy display - REMOVED
+    # No statistics tracking to keep app clean and simple
 
 def display_prediction_result(prediction, model):
     """Display the prediction result with styling"""
@@ -484,14 +451,6 @@ def display_prediction_result(prediction, model):
     st.subheader("📊 Confidence")
     st.progress(confidence)
     st.write(f"Confidence: {confidence:.1%}")
-    
-    # Update session state
-    st.session_state.total_predictions += 1
-    st.session_state.predictions.append({
-        'prediction': result,
-        'confidence': confidence,
-        'correct': True  # For demo purposes
-    })
     
     # Additional information
     st.subheader("ℹ️ Model Information")
