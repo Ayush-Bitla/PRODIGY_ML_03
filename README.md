@@ -21,26 +21,22 @@ Access the live Streamlit app here:
 - **Real-time Processing**: Fast inference for live predictions
 
 ### Web Application Features
-- **📤 Upload Images**: Drag & drop or click to upload images
-- **📷 Live Camera**: Real-time camera capture and prediction
+- **📤 Upload Images**: Upload JPG or PNG images for classification
 - **🎯 Instant Predictions**: Get results in 2-3 seconds
-- **📊 Real-time Accuracy**: Dynamic confidence scoring
-- **💾 Model Download**: Save trained models for later use
-- **🔄 Auto-prediction**: Optional automatic prediction on camera capture
+- **📊 Confidence Display**: View prediction confidence scores
+- **💾 Model Persistence**: Save/load trained models
 
 ### Technical Features
-- **Dataset Management**: Automatic Kaggle dataset download
+- **Dataset Management**: Manual dataset setup
 - **Model Persistence**: Save/load trained models
 - **Error Handling**: Robust error handling for invalid images
 - **Cross-platform**: Works on Windows, Mac, and Linux
-- **Virtual Environment**: Isolated dependencies
 
 ## 📦 Installation & Setup
 
 ### Prerequisites
 - Python 3.7+
 - Internet connection for dataset download
-- Kaggle API credentials
 
 ### Quick Start
 
@@ -50,30 +46,22 @@ git clone https://github.com/Ayush-Bitla/PRODIGY_ML_03.git
 cd PRODIGY_ML_03
 ```
 
-2. **Create virtual environment:**
-```bash
-python -m venv .venv
-.venv\Scripts\Activate.ps1  # Windows
-# source .venv/bin/activate  # Mac/Linux
-```
-
-3. **Install dependencies:**
+2. **Install dependencies:**
 ```bash
 pip install -r requirements.txt
 ```
 
-4. **Setup Kaggle API:**
-   - Go to [Kaggle](https://www.kaggle.com/) and create an account
-   - Go to your account settings and create an API token
-   - Download the `kaggle.json` file
-   - Place the `kaggle.json` file in the project directory
+3. **Setup dataset:**
+   - Download the Dogs vs Cats dataset
+   - Extract to `dogs-vs-cats/images/train/train/` directory
+   - Ensure images are named with "cat" or "dog" in filename
 
-5. **Run the main script:**
+4. **Run the main script:**
 ```bash
 python dog_cat_classifier.py
 ```
 
-6. **Launch the web app:**
+5. **Launch the web app:**
 ```bash
 streamlit run app.py
 ```
@@ -83,19 +71,16 @@ streamlit run app.py
 ### Training the Model
 1. Run `python dog_cat_classifier.py`
 2. The script will automatically:
-   - Download the Dogs vs Cats dataset from Kaggle
-   - Load and preprocess 2000 images
+   - Load and preprocess 2000 images from the dataset
    - Extract features using MobileNetV2
    - Train an SVM classifier
    - Show accuracy and confusion matrix
    - Save the trained model
 
 ### Using the Web App
-1. **Upload Tab**: Upload images from your device
-2. **Camera Tab**: Use live camera for real-time predictions
-3. **Activate Camera**: Click to start camera (privacy-friendly)
-4. **Auto-predict**: Enable for instant results
-5. **View Results**: See predictions with confidence scores
+1. **Upload Image**: Click "Choose a JPG or PNG image" to upload
+2. **Predict**: Click "🔍 Predict" button
+3. **View Results**: See predictions with confidence scores
 
 ### Making Predictions
 ```python
@@ -105,7 +90,7 @@ from dog_cat_classifier import load_model, predict_single_image
 model = load_model()
 
 # Predict a single image
-prediction = predict_single_image(model, "path/to/image.jpg")
+prediction = predict_single_image("path/to/image.jpg")
 # Returns: 0 for Cat, 1 for Dog
 ```
 
@@ -142,42 +127,37 @@ PRODIGY_ML_03/
 ├── app.py                   # Streamlit web application
 ├── requirements.txt         # Python dependencies
 ├── README.md               # This file
-├── kaggle.json            # Kaggle API credentials (you add this)
 ├── mobilenet_svm_model.pkl # Trained model (generated after training)
-├── dogs-vs-cats/          # Dataset folder (downloaded automatically)
+├── dogs-vs-cats/          # Dataset folder
 │   └── images/
-│       ├── train/         # Training images
-│       └── test/          # Test images
-└── .venv/                 # Virtual environment
+│       └── train/         # Training images
+└── sample predictions.png  # Generated visualization
 ```
 
 ## 📈 What We Built
 
 ### 1. **Complete ML Pipeline**
-- ✅ Dataset download and preprocessing
+- ✅ Dataset loading and preprocessing
 - ✅ Feature extraction using MobileNetV2
 - ✅ SVM training and evaluation
 - ✅ Model saving and loading
 - ✅ Prediction on new images
 
 ### 2. **Interactive Web Application**
-- ✅ Modern UI with tabs and real-time features
-- ✅ File upload functionality
-- ✅ Live camera integration
-- ✅ Real-time accuracy tracking
+- ✅ Simple UI with file upload
+- ✅ Image display and prediction
+- ✅ Confidence score display
 - ✅ Error handling and user feedback
 
 ### 3. **Advanced Features**
 - ✅ Transfer learning with pre-trained models
-- ✅ Batch processing for efficiency
+- ✅ Model persistence
 - ✅ Cross-platform compatibility
-- ✅ Virtual environment setup
 - ✅ Comprehensive documentation
 
 ### 4. **Production-Ready Features**
 - ✅ Model persistence
 - ✅ Error handling
-- ✅ Progress tracking
 - ✅ User-friendly interface
 - ✅ Scalable architecture
 
@@ -190,13 +170,11 @@ PRODIGY_ML_03/
 - **Streamlit**: Web application framework
 - **Pandas**: Data manipulation
 - **Matplotlib**: Visualization
-- **Kaggle**: Dataset download
 
 ### Model Specifications
 - **Input Size**: 224x224x3 RGB images
 - **Feature Dimensions**: 1280 (MobileNetV2 output)
 - **Classifier**: SVM with RBF kernel
-- **Optimization**: Grid search for hyperparameters
 - **Regularization**: Built into SVM
 
 ## 🎯 Key Learnings
@@ -204,9 +182,8 @@ PRODIGY_ML_03/
 ### Machine Learning
 - Transfer learning with pre-trained models
 - Feature extraction vs end-to-end training
-- Hyperparameter tuning for SVM
 - Model evaluation and validation
-- Data preprocessing and augmentation
+- Data preprocessing
 
 ### Software Engineering
 - Modular code design
@@ -218,7 +195,6 @@ PRODIGY_ML_03/
 ### Web Development
 - Streamlit framework usage
 - Real-time data processing
-- Camera integration
 - State management
 - Responsive design
 
