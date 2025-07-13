@@ -1,5 +1,7 @@
 # 🐕🐱 Dog vs Cat Classifier (PRODIGY_ML_03)
 
+![Demo](DogCatClassifierDemo.gif)
+
 A comprehensive machine learning project for binary classification of dog and cat images using MobileNetV2 for feature extraction and Support Vector Machine (SVM) for classification. Built for the Prodigy ML internship.
 
 ## 🎯 Project Overview
@@ -134,33 +136,6 @@ PRODIGY_ML_03/
 └── sample predictions.png  # Generated visualization
 ```
 
-## 📈 What We Built
-
-### 1. **Complete ML Pipeline**
-- ✅ Dataset loading and preprocessing
-- ✅ Feature extraction using MobileNetV2
-- ✅ SVM training and evaluation
-- ✅ Model saving and loading
-- ✅ Prediction on new images
-
-### 2. **Interactive Web Application**
-- ✅ Simple UI with file upload
-- ✅ Image display and prediction
-- ✅ Confidence score display
-- ✅ Error handling and user feedback
-
-### 3. **Advanced Features**
-- ✅ Transfer learning with pre-trained models
-- ✅ Model persistence
-- ✅ Cross-platform compatibility
-- ✅ Comprehensive documentation
-
-### 4. **Production-Ready Features**
-- ✅ Model persistence
-- ✅ Error handling
-- ✅ User-friendly interface
-- ✅ Scalable architecture
-
 ## 🔧 Technical Details
 
 ### Dependencies
@@ -177,26 +152,6 @@ PRODIGY_ML_03/
 - **Classifier**: SVM with RBF kernel
 - **Regularization**: Built into SVM
 
-## 🎯 Key Learnings
-
-### Machine Learning
-- Transfer learning with pre-trained models
-- Feature extraction vs end-to-end training
-- Model evaluation and validation
-- Data preprocessing
-
-### Software Engineering
-- Modular code design
-- Error handling and logging
-- User interface development
-- Model deployment and serving
-- Version control and documentation
-
-### Web Development
-- Streamlit framework usage
-- Real-time data processing
-- State management
-- Responsive design
 
 ## 🤝 Contributing
 
@@ -216,9 +171,3 @@ This project is part of the PRODIGY ML internship program.
 ---
 
 **Built with ❤️ for the PRODIGY ML internship** 
-
-## Result
-
-Below is an example output from the classifier, showing side-by-side predictions for a cat and a dog image:
-
-![Result](side_by_side_test.png) 
