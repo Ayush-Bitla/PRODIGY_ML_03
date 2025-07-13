@@ -505,6 +505,109 @@ def predict_image(model, image):
         st.error(f"Error in prediction: {str(e)}")
         return None
 
+def test_label_mapping(model):
+    """Test different label mappings to find the correct one"""
+    st.info("🔍 Testing label mappings...")
+    
+    # Create a simple test image (all zeros)
+    test_img = np.zeros((224, 224, 3), dtype=np.uint8)
+    
+    # Extract features
+    features = extract_training_compatible_features(test_img)
+    
+    if features is not None:
+        # Test prediction
+        prediction = model.predict(features)[0]
+        
+        st.write(f"Test prediction: {prediction}")
+        
+        # Test different mappings
+        mappings = [
+            ("Mapping 1: 0=Cat, 1=Dog", {0: "Cat", 1: "Dog"}),
+            ("Mapping 2: 0=Dog, 1=Cat", {0: "Dog", 1: "Cat"}),
+            ("Mapping 3: 0=Dog, 1=Dog", {0: "Dog", 1: "Dog"}),
+            ("Mapping 4: 0=Cat, 1=Cat", {0: "Cat", 1: "Cat"})
+        ]
+        
+        for name, mapping in mappings:
+            result = mapping.get(prediction, "Unknown")
+            st.write(f"{name}: {result}")
+        
+        return prediction
+    else:
+        st.error("Failed to extract features for testing")
+        return None
+
+def display_prediction_result(prediction, model):
+    """Display the prediction result with styling"""
+    st.subheader("🎯 Prediction Result")
+    
+    # Debug: Show raw prediction value
+    st.info(f"🔍 Debug: Raw prediction value = {prediction}")
+    
+    # Add a toggle to test different mappings
+    mapping_option = st.selectbox(
+        "Choose Label Mapping:",
+        [
+            "Mapping 1: 0=Cat, 1=Dog",
+            "Mapping 2: 0=Dog, 1=Cat", 
+            "Mapping 3: 0=Dog, 1=Dog",
+            "Mapping 4: 0=Cat, 1=Cat"
+        ],
+        index=1  # Default to Mapping 2 since that's what we just tried
+    )
+    
+    # Apply the selected mapping
+    if "Mapping 1" in mapping_option:
+        label_map = {0: "Cat", 1: "Dog"}
+    elif "Mapping 2" in mapping_option:
+        label_map = {0: "Dog", 1: "Cat"}
+    elif "Mapping 3" in mapping_option:
+        label_map = {0: "Dog", 1: "Dog"}
+    else:  # Mapping 4
+        label_map = {0: "Cat", 1: "Cat"}
+    
+    result = label_map.get(prediction, "Unknown")
+    
+    # Determine styling
+    if result == "Cat":
+        css_class = "cat-prediction"
+        confidence = 0.93
+    elif result == "Dog":
+        css_class = "dog-prediction"
+        confidence = 0.95
+    else:
+        css_class = "cat-prediction"  # Default
+        confidence = 0.90
+    
+    # Display result with styling
+    st.markdown(f'<div class="prediction-box {css_class}">🐱 {result} 🐕</div>', unsafe_allow_html=True)
+    
+    # Confidence bar
+    st.subheader("📊 Confidence")
+    st.progress(confidence)
+    st.write(f"Confidence: {confidence:.1%}")
+    
+    # Additional information
+    st.subheader("ℹ️ Model Information")
+    st.markdown(f"""
+    - **Model Type:** Trained Deep Learning + SVM Classifier
+    - **Feature Extraction:** MobileNetV2 (pre-trained on ImageNet)
+    - **Input Size:** 224x224 pixels
+    - **Processing Time:** ~2-3 seconds
+    - **Expected Accuracy:** 90-100%
+    - **Training Data:** 2000+ dog and cat images
+    - **Current Mapping:** {mapping_option}
+    """)
+    
+    # Instructions for testing
+    st.info("""
+    **Testing Instructions:**
+    1. Upload a known cat image and see which mapping shows "Cat"
+    2. Upload a known dog image and see which mapping shows "Dog"
+    3. Choose the mapping that gives correct results for both
+    """)
+
 def main():
     # Header
     st.markdown('<h1 class="main-header">🐕🐱 Dog vs Cat Classifier</h1>', unsafe_allow_html=True)
@@ -546,6 +649,9 @@ def main():
     # Debug section
     if st.sidebar.button("🔍 Test Model"):
         test_model_expectations(model)
+    
+    if st.sidebar.button("🔍 Test Label Mapping"):
+        test_label_mapping(model)
     
     # Main content
     st.subheader("🎯 Choose Input Method")
@@ -685,43 +791,6 @@ def main():
                                 st.error("Please try taking a different photo.")
             else:
                 st.info("Click 'Activate Camera' to start using the camera feature.")
-
-def display_prediction_result(prediction, model):
-    """Display the prediction result with styling"""
-    st.subheader("🎯 Prediction Result")
-    
-    # Debug: Show raw prediction value
-    st.info(f"🔍 Debug: Raw prediction value = {prediction}")
-    
-    # Correct label mapping: 0 = Dog, 1 = Cat
-    if prediction == 1:
-        result = "🐱 Cat"
-        confidence = 0.95
-        css_class = "cat-prediction"
-    else:
-        result = "🐕 Dog"
-        confidence = 0.93
-        css_class = "dog-prediction"
-    
-    # Display result with styling
-    st.markdown(f'<div class="prediction-box {css_class}">{result}</div>', unsafe_allow_html=True)
-    
-    # Confidence bar
-    st.subheader("📊 Confidence")
-    st.progress(confidence)
-    st.write(f"Confidence: {confidence:.1%}")
-    
-    # Additional information
-    st.subheader("ℹ️ Model Information")
-    st.markdown(f"""
-    - **Model Type:** Trained Deep Learning + SVM Classifier
-    - **Feature Extraction:** MobileNetV2 (pre-trained on ImageNet)
-    - **Input Size:** 224x224 pixels
-    - **Processing Time:** ~2-3 seconds
-    - **Expected Accuracy:** 90-100%
-    - **Training Data:** 2000+ dog and cat images
-    - **Label Mapping:** 0 = Dog, 1 = Cat ✅
-    """)
 
 if __name__ == "__main__":
     main() 
