@@ -18,6 +18,17 @@ st.set_page_config(
     layout="wide"
 )
 
+# Global variable for MobileNetV2 model
+@st.cache_resource
+def load_mobilenet():
+    """Load MobileNetV2 model once and cache it"""
+    try:
+        model = MobileNetV2(weights='imagenet', include_top=False, pooling='avg', input_shape=(224, 224, 3))
+        return model
+    except Exception as e:
+        st.error(f"Error loading MobileNetV2: {str(e)}")
+        return None
+
 # Custom CSS for better styling
 st.markdown("""
 <style>
@@ -55,24 +66,29 @@ st.markdown("""
 def load_model():
     """Load the trained model"""
     try:
+        if not os.path.exists("mobilenet_svm_model.pkl"):
+            st.error("Model file 'mobilenet_svm_model.pkl' not found. Please ensure the model is trained and saved.")
+            return None
         with open("mobilenet_svm_model.pkl", 'rb') as f:
             model = pickle.load(f)
         return model
-    except FileNotFoundError:
-        st.error("Model file not found. Please make sure 'mobilenet_svm_model.pkl' exists in the current directory.")
+    except Exception as e:
+        st.error(f"Error loading model: {str(e)}")
         return None
 
 def extract_features(image):
     """Extract features from a single image using MobileNetV2"""
     try:
-        # Load MobileNetV2 model
-        model = MobileNetV2(weights='imagenet', include_top=False, pooling='avg', input_shape=(224, 224, 3))
+        # Get cached MobileNetV2 model
+        mobilenet_model = load_mobilenet()
+        if mobilenet_model is None:
+            return None
         
         # Preprocess image
         image = preprocess_input(image)
         
         # Extract features
-        features = model.predict(image, verbose=0)
+        features = mobilenet_model.predict(image, verbose=0)
         return features
     except Exception as e:
         st.error(f"Error in feature extraction: {str(e)}")
@@ -159,7 +175,31 @@ def main():
     # Load model
     model = load_model()
     
+    # Demo mode if model not found
     if model is None:
+        st.warning("""
+        ## ⚠️ Demo Mode
+        
+        Model file not found. Running in demo mode with simulated predictions.
+        
+        **To enable full functionality:**
+        1. Run `python dog_cat_classifier.py` to train the model
+        2. Ensure `mobilenet_svm_model.pkl` is in the same directory
+        3. Restart the app
+        """)
+        
+        # Create a demo model that returns random predictions
+        class DemoModel:
+            def predict(self, features):
+                import random
+                return [random.choice([0, 1])]  # 0 for cat, 1 for dog
+        
+        model = DemoModel()
+    
+    # Check if MobileNetV2 can be loaded
+    mobilenet_model = load_mobilenet()
+    if mobilenet_model is None:
+        st.error("Failed to load MobileNetV2 model. Please check your TensorFlow installation.")
         st.stop()
     
     # Sidebar
