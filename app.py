@@ -693,35 +693,18 @@ def display_prediction_result(prediction, model):
     # Debug: Show raw prediction value
     st.info(f"🔍 Debug: Raw prediction value = {prediction}")
     
-    # Try both label mappings to see which one works
-    # Original mapping: 0 = Cat, 1 = Dog
-    # Alternative mapping: 0 = Dog, 1 = Cat (inverted)
-    
+    # Correct label mapping: 0 = Dog, 1 = Cat
     if prediction == 1:
-        result_original = "🐕 Dog"
-        result_inverted = "🐱 Cat"
+        result = "🐱 Cat"
         confidence = 0.95
-        css_class_dog = "dog-prediction"
-        css_class_cat = "cat-prediction"
+        css_class = "cat-prediction"
     else:
-        result_original = "🐱 Cat"
-        result_inverted = "🐕 Dog"
+        result = "🐕 Dog"
         confidence = 0.93
-        css_class_cat = "cat-prediction"
-        css_class_dog = "dog-prediction"
+        css_class = "dog-prediction"
     
-    # Show both possibilities
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("Original Mapping (0=Cat, 1=Dog)")
-        css_class = css_class_dog if prediction == 1 else css_class_cat
-        st.markdown(f'<div class="prediction-box {css_class}">{result_original}</div>', unsafe_allow_html=True)
-    
-    with col2:
-        st.subheader("Inverted Mapping (0=Dog, 1=Cat)")
-        css_class = css_class_cat if prediction == 1 else css_class_dog
-        st.markdown(f'<div class="prediction-box {css_class}">{result_inverted}</div>', unsafe_allow_html=True)
+    # Display result with styling
+    st.markdown(f'<div class="prediction-box {css_class}">{result}</div>', unsafe_allow_html=True)
     
     # Confidence bar
     st.subheader("📊 Confidence")
@@ -737,7 +720,7 @@ def display_prediction_result(prediction, model):
     - **Processing Time:** ~2-3 seconds
     - **Expected Accuracy:** 90-100%
     - **Training Data:** 2000+ dog and cat images
-    - **Label Mapping:** Testing both mappings
+    - **Label Mapping:** 0 = Dog, 1 = Cat ✅
     """)
 
 if __name__ == "__main__":
