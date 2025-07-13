@@ -22,7 +22,7 @@ def load_trained_model():
         if os.path.exists(model_path):
             with open(model_path, 'rb') as f:
                 model = pickle.load(f)
-            st.success("✅ Trained model loaded successfully!")
+            # st.success("✅ Trained model loaded successfully!")
             return model
         else:
             st.error(f"❌ Model file not found: {model_path}")
@@ -463,7 +463,6 @@ def display_prediction_result(prediction, model):
     - **Processing Time:** ~2-3 seconds
     - **Expected Accuracy:** 90-100%
     - **Training Data:** 2000+ dog and cat images
-    - **Model Status:** ✅ Successfully loaded and ready
     """)
 
 if __name__ == "__main__":
