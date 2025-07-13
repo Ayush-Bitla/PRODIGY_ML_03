@@ -36,6 +36,7 @@ test1.zip
 *.png
 !side_by_side_test.png
 *.gif
+!DogCatClassifierDemo.gif
 
 # Model files (can be regenerated)
 *.h5
