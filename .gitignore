@@ -34,6 +34,7 @@ test1.zip
 *.jpg
 *.jpeg
 *.png
+!side_by_side_test.png
 *.gif
 
 # Model files (can be regenerated)
