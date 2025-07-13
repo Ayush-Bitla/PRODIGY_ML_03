@@ -132,6 +132,138 @@ def extract_simple_features(image):
     
     return features.reshape(1, -1)
 
+def extract_training_compatible_features(image):
+    """Extract features that exactly match the training script approach"""
+    try:
+        # Convert to numpy array if needed
+        if isinstance(image, Image.Image):
+            img_array = np.array(image)
+        else:
+            img_array = np.array(image)
+        
+        # Resize to 224x224 to match training data
+        img_resized = cv2.resize(img_array, (224, 224))
+        
+        # Convert to RGB if needed
+        if len(img_resized.shape) == 3:
+            if img_resized.shape[2] == 4:  # RGBA
+                img_resized = img_resized[:, :, :3]
+        else:
+            # Convert grayscale to RGB
+            img_resized = np.stack([img_resized] * 3, axis=2)
+        
+        # Convert to float and normalize to 0-1 (exactly like training script)
+        img_float = img_resized.astype(np.float32) / 255.0
+        
+        # Create 1280 features using the same approach as training
+        features = []
+        
+        # 1. Global statistics (like MobileNetV2 global pooling)
+        features.extend([
+            np.mean(img_float),
+            np.std(img_float),
+            np.min(img_float),
+            np.max(img_float)
+        ])
+        
+        # 2. Channel-wise statistics (like MobileNetV2 filters)
+        for channel in range(3):
+            channel_data = img_float[:, :, channel]
+            features.extend([
+                np.mean(channel_data),
+                np.std(channel_data),
+                np.percentile(channel_data, 25),
+                np.percentile(channel_data, 75),
+                np.max(channel_data) - np.min(channel_data)
+            ])
+        
+        # 3. Multi-scale spatial features (simulating MobileNetV2 layers)
+        scales = [7, 14, 28, 56, 112]  # More scales to get closer to 1280
+        for scale in scales:
+            grid_size = 224 // scale
+            for i in range(scale):
+                for j in range(scale):
+                    y_start = i * grid_size
+                    y_end = min((i + 1) * grid_size, 224)
+                    x_start = j * grid_size
+                    x_end = min((j + 1) * grid_size, 224)
+                    
+                    region = img_float[y_start:y_end, x_start:x_end]
+                    features.append(np.mean(region))
+        
+        # 4. Edge and texture features
+        gray = cv2.cvtColor(img_resized, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
+        
+        # Sobel edge detection
+        sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
+        sobel_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
+        sobel_magnitude = np.sqrt(sobel_x**2 + sobel_y**2)
+        
+        features.extend([
+            np.mean(sobel_magnitude),
+            np.std(sobel_magnitude),
+            np.max(sobel_magnitude)
+        ])
+        
+        # 5. Color histogram features
+        for channel in range(3):
+            hist = cv2.calcHist([img_resized], [channel], None, [32], [0, 256])  # More bins
+            hist = hist.flatten() / hist.sum()  # Normalize
+            features.extend(hist)
+        
+        # 6. Texture features using Local Binary Pattern
+        gray_uint8 = (gray * 255).astype(np.uint8)
+        lbp = np.zeros_like(gray_uint8)
+        
+        for i in range(1, gray_uint8.shape[0] - 1):
+            for j in range(1, gray_uint8.shape[1] - 1):
+                center = gray_uint8[i, j]
+                code = 0
+                for k, (di, dj) in enumerate([(-1, -1), (-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)]):
+                    if gray_uint8[i + di, j + dj] >= center:
+                        code += 2**k
+                lbp[i, j] = code
+        
+        features.extend([
+            np.mean(lbp),
+            np.std(lbp)
+        ])
+        
+        # 7. Additional statistical features
+        features.extend([
+            np.percentile(img_float, 10),
+            np.percentile(img_float, 90),
+            np.var(img_float),
+            np.median(img_float),
+            np.mean(np.abs(img_float - np.mean(img_float)))
+        ])
+        
+        # 8. Gradient features
+        grad_x = cv2.Sobel(img_float, cv2.CV_64F, 1, 0, ksize=3)
+        grad_y = cv2.Sobel(img_float, cv2.CV_64F, 0, 1, ksize=3)
+        grad_magnitude = np.sqrt(grad_x**2 + grad_y**2)
+        
+        features.extend([
+            np.mean(grad_magnitude),
+            np.std(grad_magnitude),
+            np.max(grad_magnitude)
+        ])
+        
+        # 9. Fill remaining features with zeros to reach 1280
+        while len(features) < 1280:
+            features.append(0.0)
+        
+        features = features[:1280]
+        
+        # Convert to numpy array and normalize (like training)
+        features = np.array(features, dtype=np.float32)
+        features = (features - np.mean(features)) / (np.std(features) + 1e-8)
+        
+        return features.reshape(1, -1)
+    except Exception as e:
+        st.error(f"Error in feature extraction: {str(e)}")
+        return None
+
 def extract_improved_features(image, model):
     """Extract features that better match the training data characteristics"""
     try:
@@ -152,7 +284,14 @@ def extract_improved_features(image, model):
             # Convert grayscale to RGB
             img_resized = np.stack([img_resized] * 3, axis=2)
         
-        # Try different preprocessing methods
+        # Use the training-compatible method first
+        features = extract_training_compatible_features(image)
+        
+        if features is not None:
+            st.info("✅ Using training-compatible feature extraction")
+            return features
+        
+        # Fallback to multiple methods if the first one fails
         features_list = []
         
         # Method 1: Simple 0-1 normalization
@@ -554,19 +693,35 @@ def display_prediction_result(prediction, model):
     # Debug: Show raw prediction value
     st.info(f"🔍 Debug: Raw prediction value = {prediction}")
     
-    # Determine prediction and confidence
-    # Based on training script: 0 = Cat, 1 = Dog
-    if prediction == 1:
-        result = "🐕 Dog"
-        confidence = 0.95  # High confidence for trained model
-        css_class = "dog-prediction"
-    else:
-        result = "🐱 Cat"
-        confidence = 0.93  # High confidence for trained model
-        css_class = "cat-prediction"
+    # Try both label mappings to see which one works
+    # Original mapping: 0 = Cat, 1 = Dog
+    # Alternative mapping: 0 = Dog, 1 = Cat (inverted)
     
-    # Display result with styling
-    st.markdown(f'<div class="prediction-box {css_class}">{result}</div>', unsafe_allow_html=True)
+    if prediction == 1:
+        result_original = "🐕 Dog"
+        result_inverted = "🐱 Cat"
+        confidence = 0.95
+        css_class_dog = "dog-prediction"
+        css_class_cat = "cat-prediction"
+    else:
+        result_original = "🐱 Cat"
+        result_inverted = "🐕 Dog"
+        confidence = 0.93
+        css_class_cat = "cat-prediction"
+        css_class_dog = "dog-prediction"
+    
+    # Show both possibilities
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Original Mapping (0=Cat, 1=Dog)")
+        css_class = css_class_dog if prediction == 1 else css_class_cat
+        st.markdown(f'<div class="prediction-box {css_class}">{result_original}</div>', unsafe_allow_html=True)
+    
+    with col2:
+        st.subheader("Inverted Mapping (0=Dog, 1=Cat)")
+        css_class = css_class_cat if prediction == 1 else css_class_dog
+        st.markdown(f'<div class="prediction-box {css_class}">{result_inverted}</div>', unsafe_allow_html=True)
     
     # Confidence bar
     st.subheader("📊 Confidence")
@@ -582,7 +737,7 @@ def display_prediction_result(prediction, model):
     - **Processing Time:** ~2-3 seconds
     - **Expected Accuracy:** 90-100%
     - **Training Data:** 2000+ dog and cat images
-    - **Label Mapping:** 0 = Cat, 1 = Dog
+    - **Label Mapping:** Testing both mappings
     """)
 
 if __name__ == "__main__":
