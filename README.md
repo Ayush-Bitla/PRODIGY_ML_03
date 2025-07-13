@@ -216,3 +216,9 @@ This project is part of the PRODIGY ML internship program.
 ---
 
 **Built with ❤️ for the PRODIGY ML internship** 
+
+## Result
+
+Below is an example output from the classifier, showing side-by-side predictions for a cat and a dog image:
+
+![Result](side_by_side_test.png) 

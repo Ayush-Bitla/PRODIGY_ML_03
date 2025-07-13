@@ -24,6 +24,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+test_images.py
 
 # Dataset files (too large for GitHub)
 dogs-vs-cats.zip
