@@ -8,6 +8,13 @@ A comprehensive machine learning project for binary classification of dog and ca
 
 This project implements a state-of-the-art image classification system that can distinguish between dogs and cats with high accuracy. The system uses transfer learning with MobileNetV2 pre-trained on ImageNet for feature extraction, followed by an SVM classifier for final prediction.
 
+
+## Result
+
+Below is an example output from the classifier, showing side-by-side predictions for a cat and a dog image:
+
+![Result](side_by_side_test.png) 
+
 ## 🚀 Live Demo
 
 Access the live Streamlit app here:  
