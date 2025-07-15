@@ -93,7 +93,7 @@ with col1:
         st.image(image, caption="Uploaded Image", use_container_width=True)
 
         # Automatic prediction
-            with st.spinner("Classifying..."):
+        with st.spinner("Classifying..."):
                 model = load_model()
                 if model is None:
                     st.stop()
